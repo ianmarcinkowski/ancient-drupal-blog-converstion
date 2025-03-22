@@ -1,0 +1,17 @@
+*.tar.gz
+*.mysql
+*.db
+*.sql
+
+# Assets
+database-backups/
+output/
+
+# Python
+.venv/
+venv/
+
+# IDE stuff
+*.swp
+*.swo
+.vscode
