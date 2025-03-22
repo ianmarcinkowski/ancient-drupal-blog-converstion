@@ -7,11 +7,14 @@
 database-backups/
 output/
 
-# Python
-.venv/
-venv/
-
 # IDE stuff
 *.swp
 *.swo
 .vscode
+
+# Python
+.venv/
+venv/
+
+# Config
+docker-compose.yml
