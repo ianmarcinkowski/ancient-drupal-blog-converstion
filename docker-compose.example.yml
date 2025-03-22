@@ -1,16 +1,16 @@
 version: '3.8'
 
 services:
-  mysql5:
+  mysql55:
     image: mysql:5.5
     container_name: mysql55
     environment:
-      MYSQL_ROOT_PASSWORD: "random root password"
+      MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: testdb
       MYSQL_USER: user
-      MYSQL_PASSWORD: "random user password"
+      MYSQL_PASSWORD: userpassword
     ports:
-      - "3307:3307"
+      - "3307:3306"
     volumes:
       - mysql5_data:/var/lib/mysql
     networks:
@@ -20,10 +20,10 @@ services:
     image: mysql:8.0
     container_name: mysql8
     environment:
-      MYSQL_ROOT_PASSWORD: "random root password"
+      MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: testdb
       MYSQL_USER: user
-      MYSQL_PASSWORD: "random user password"
+      MYSQL_PASSWORD: userpassword
     ports:
       - "3306:3306" # Expose MySQL 8.0 on port 3306
     volumes:
