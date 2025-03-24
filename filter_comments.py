@@ -55,7 +55,8 @@ def fetch_records(db_config, query, limit=None):
 
 
 EVALUATION_PROMPT = """
-You are evaluating blog comments to detect spam. Analyze the following comment and determine if it's spam.
+You are evaluating blog comments to detect spam. Analyze the following comment
+and determine if it's spam.
 
 Comment details:
 - Subject: {}
@@ -94,7 +95,9 @@ def evaluate_comment(comment_record, ollama_client, model):
 
 def main(db_config, record_limit, ollama_client, model):
     try:
-        comments = fetch_records(db_config, DRUPAL_COMMENTS_ONLY_QUERY, limit=record_limit)
+        comments = fetch_records(
+            db_config, DRUPAL_COMMENTS_ONLY_QUERY, limit=record_limit
+        )
     except mysql.connector.errors.Error as exc:
         print(f"Error fetching records: {exc}")
         exit(1)
@@ -111,15 +114,18 @@ def main(db_config, record_limit, ollama_client, model):
         performance_data.append([i + 1, content_length, execution_time, result])
 
     # Create the dataframe from raw performance data
-    # Never grow a dataframe, it's more efficient to create simple lists of column data
-    # and construct the dataframe once
-    results_df = pd.DataFrame(performance_data, columns=["Comment ID", "Length", "Execution Time (s)", "Result"])
+    # Never grow a dataframe, it's more efficient to create simple lists of
+    # column data and construct the dataframe once
+    results_df = pd.DataFrame(
+        performance_data,
+        columns=["Comment ID", "Length", "Execution Time (s)", "Result"],
+    )
 
     # Print performance summary
     print("\n=== Performance Summary ===")
     print(f"Model: {model}")
     comment_count = len(results_df)
-    total_time = results_df['Execution Time (s)'].sum()
+    total_time = results_df["Execution Time (s)"].sum()
 
     # Generate statistics from the DataFrame
     print("\n=== Performance Statistics ===")
@@ -129,11 +135,11 @@ def main(db_config, record_limit, ollama_client, model):
     print(f"Average content length: {results_df['Length'].mean():.2f} characters")
     print(f"Min execution time: {results_df['Execution Time (s)'].min():.3f} seconds")
     print(f"Max execution time: {results_df['Execution Time (s)'].max():.3f} seconds")
-    correlation = results_df['Length'].corr(results_df['Execution Time (s)'])
+    correlation = results_df["Length"].corr(results_df["Execution Time (s)"])
     print(f"\nCorrelation between content length and execution time: {correlation:.3f}")
 
     # Count spam vs non-spam
-    result_counts = results_df['Result'].value_counts()
+    result_counts = results_df["Result"].value_counts()
     print("\n=== Classification Results ===")
     for result_type, count in result_counts.items():
         print(f"{result_type}: {count} ({count/comment_count*100:.1f}%)")
