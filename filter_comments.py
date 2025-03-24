@@ -1,6 +1,6 @@
 import argparse
 import mysql.connector
-from ollama import Client
+from ollama import Client, ResponseError
 from tqdm import tqdm
 import time
 import pandas as pd
@@ -56,7 +56,7 @@ def fetch_records(db_config, query, limit=None):
 
 EVALUATION_PROMPT = """
 You are evaluating blog comments to detect spam. Analyze the following comment
-and determine if it's spam.
+and determine if it's spam.  The user is calling a function `spam_detected(is_spam: str)`
 
 Comment details:
 - Subject: {}
@@ -77,6 +77,8 @@ Respond with ONLY ONE of these two statements:
 - "SPAM" if you determine this is likely spam
 - "NOT_SPAM" if you believe this is a legitimate comment
 
+Do not include your reasoning, only respond with a single value.
+
 Your analysis:
 """
 
@@ -88,9 +90,16 @@ def evaluate_comment(comment_record, ollama_client, model):
     )
     # Start with a carriage return to overwrite the previous line
     print(f"\rProcessing comment: '{comment[:30]}'", end="\r")
-    response = ollama_client.generate(model=model, prompt=prompt)
-    result = response["response"].strip()
-    return result
+    try:
+        response = ollama_client.generate(model=model, prompt=prompt)
+        result = response["response"].strip()
+        return result
+    except ResponseError as exc:
+        # Log error to file instead of printing to terminal
+        with open("error_log.txt", "a") as log_file:
+            log_file.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Ollama error: {exc} Comment: {comment}\n")
+        print(f"\rError processing comment (see error_log.txt)", end="\r")
+    return "ERROR"
 
 
 def main(db_config, record_limit, ollama_client, model):
