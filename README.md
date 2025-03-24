@@ -2,16 +2,19 @@
 
 Overall Goal:
 
-- Migrate my historic blog entries to a static site generator (probably Hugo)
+- Migrate my historic blog entries to Hugo static site generator
 
 Situation:
 
 - Old Mysql 5.x backups containing a Drupal 5 blog (2010s era)
 - Mysql 5.x backups do not cleanly restore in Mysql 8
+- I have a few comments worth preserving from my old threads in Drupal
+- I have ~19,000 spam commnets to sift through
 
-Nice to haves:
+Nice to haves/Stretch goals:
 
 - We want to convert to Sqlite3 to remove need for a DB server for future archive work
+- Filtering comments using a local LLM like Llama 3.2, Gemma3 or Deepseek
 
 ## Restoring MySQL 5.5 backups in 202X
 
