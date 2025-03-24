@@ -1,8 +1,8 @@
 import argparse
 import mysql.connector
 from ollama import Client
+from tqdm import tqdm
 import time
-from prettytable import PrettyTable
 import pandas as pd
 
 DRUPAL_COMMENTS_ONLY_QUERY = """
@@ -92,46 +92,32 @@ def evaluate_comment(comment_record, ollama_client, model):
     return result
 
 
-def main(db_config, ollama_client, model):
+def main(db_config, record_limit, ollama_client, model):
     try:
-        comments = fetch_records(db_config, DRUPAL_COMMENTS_ONLY_QUERY, limit=20)
+        comments = fetch_records(db_config, DRUPAL_COMMENTS_ONLY_QUERY, limit=record_limit)
     except mysql.connector.errors.Error as exc:
         print(f"Error fetching records: {exc}")
         exit(1)
 
-    results_table = PrettyTable()
-    results_table.field_names = ["Comment ID", "Length", "Execution Time (s)", "Result"]
-
     # Create a list of values and construct the Dataframe at the end
     performance_data = []
-    for i, comment in enumerate(comments):
+    for i, comment in enumerate(tqdm(comments)):
         content_length = len(comment[4]) if comment[4] else 0
 
         # Measure execution time
         start_time = time.time()
         result = evaluate_comment(comment, ollama_client, model=model)
         execution_time = time.time() - start_time
-
-        # Add row to table
-        results_table.add_row([i + 1, content_length, f"{execution_time:.3f}", result])
         performance_data.append([i + 1, content_length, execution_time, result])
 
-        # # Add data to results_df
-        # results_df = pd.concat([results_df, pd.DataFrame({
-        #     "Comment ID": [i + 1],
-        #     "Length": [content_length],
-        #     "Execution Time (s)": [execution_time],
-        #     "Result": [result]
-        # })], ignore_index=True)
-
-    # Create a pretty table for output
-    # Initialize an empty DataFrame to store results
+    # Create the dataframe from raw performance data
+    # Never grow a dataframe, it's more efficient to create simple lists of column data
+    # and construct the dataframe once
     results_df = pd.DataFrame(performance_data, columns=["Comment ID", "Length", "Execution Time (s)", "Result"])
 
     # Print performance summary
     print("\n=== Performance Summary ===")
     print(f"Model: {model}")
-    # Get statistics from the DataFrame
     comment_count = len(results_df)
     total_time = results_df['Execution Time (s)'].sum()
 
@@ -143,6 +129,8 @@ def main(db_config, ollama_client, model):
     print(f"Average content length: {results_df['Length'].mean():.2f} characters")
     print(f"Min execution time: {results_df['Execution Time (s)'].min():.3f} seconds")
     print(f"Max execution time: {results_df['Execution Time (s)'].max():.3f} seconds")
+    correlation = results_df['Length'].corr(results_df['Execution Time (s)'])
+    print(f"\nCorrelation between content length and execution time: {correlation:.3f}")
 
     # Count spam vs non-spam
     result_counts = results_df['Result'].value_counts()
@@ -150,12 +138,7 @@ def main(db_config, ollama_client, model):
     for result_type, count in result_counts.items():
         print(f"{result_type}: {count} ({count/comment_count*100:.1f}%)")
 
-    # Show correlation between content length and execution time
-    correlation = results_df['Length'].corr(results_df['Execution Time (s)'])
-    print(f"\nCorrelation between content length and execution time: {correlation:.3f}")
-
     print("\n=== Detailed Results ===")
-    print(results_table)
     print(results_df)
 
 
@@ -175,6 +158,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--language-model", required=True, help="LLM model for filtering"
     )
+    parser.add_argument(
+        "--num-records", default=100, help="Number of records to filter"
+    )
 
     args = parser.parse_args()
 
@@ -190,4 +176,4 @@ if __name__ == "__main__":
     ollama_uri = f"{args.ollama_host}:{args.ollama_port}"
     ollama_client = Client(host=ollama_uri)
 
-    main(db_config, ollama_client, args.language_model)
+    main(db_config, args.num_records, ollama_client, args.language_model)

@@ -1,0 +1,5 @@
+mysql.connector
+markdown
+ollama
+pandas
+tqdm
