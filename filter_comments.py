@@ -1,9 +1,10 @@
 import argparse
+import pandas as pd
 import mysql.connector
+import re
+import time
 from ollama import Client, ResponseError
 from tqdm import tqdm
-import time
-import pandas as pd
 
 DRUPAL_COMMENTS_ONLY_QUERY = """
 SELECT
@@ -83,6 +84,22 @@ Your analysis:
 """
 
 
+def strip_thinking_output(response):
+    opening_tag_present = "<think>" in response
+    closing_tag_present = "</think>" in response
+
+    if opening_tag_present and closing_tag_present:
+        cleaned_response = re.sub(r"<think>.*?</think>", "", response, flags=re.DOTALL)
+        return cleaned_response.strip()
+    return response
+
+
+def log_error(msg):
+    with open("error_log.txt", "a", encoding="utf-8") as log_file:
+        log_file.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {msg}\n")
+    print(f"\rError processing comment (see error_log.txt)", end="\r")
+
+
 def evaluate_comment(comment_record, ollama_client, model):
     (comment, username, user_email, homepage_url, content) = comment_record
     prompt = EVALUATION_PROMPT.format(
@@ -93,12 +110,14 @@ def evaluate_comment(comment_record, ollama_client, model):
     try:
         response = ollama_client.generate(model=model, prompt=prompt)
         result = response["response"].strip()
+        try:
+            result = strip_thinking_output(result)
+        except Exception as exc:
+            log_error(f"Error cleaning result of <think> tags: {exc}")
         return result
     except ResponseError as exc:
         # Log error to file instead of printing to terminal
-        with open("error_log.txt", "a") as log_file:
-            log_file.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Ollama error: {exc} Comment: {comment}\n")
-        print(f"\rError processing comment (see error_log.txt)", end="\r")
+        log_error(f"Ollama error: {exc} Comment: {comment}\n")
     return "ERROR"
 
 
