@@ -1,4 +1,5 @@
 import argparse
+import json
 import pandas as pd
 import mysql.connector
 import re
@@ -44,7 +45,7 @@ def fetch_records(db_config, query, limit=None):
         query += f"\nLIMIT {limit}"
 
     connection = mysql.connector.connect(**db_config)
-    cursor = connection.cursor()
+    cursor = connection.cursor(dictionary=True)
 
     # Query to select all records from the specified table
     cursor.execute(query)
@@ -101,7 +102,11 @@ def log_error(msg):
 
 
 def evaluate_comment(comment_record, ollama_client, model):
-    (comment, username, user_email, homepage_url, content) = comment_record
+    comment = comment_record.get('comment_subject', '')
+    username = comment_record.get('comment_username', '')
+    user_email = comment_record.get('comment_user_email', '')
+    homepage_url = comment_record.get('comment_user_homepage_url', '')
+    content = comment_record.get('comment_content', '')
     prompt = EVALUATION_PROMPT.format(
         comment, username, user_email, homepage_url, content
     )
@@ -133,13 +138,16 @@ def main(db_config, record_limit, ollama_client, model):
     # Create a list of values and construct the Dataframe at the end
     performance_data = []
     for i, comment in enumerate(tqdm(comments)):
-        content_length = len(comment[4]) if comment[4] else 0
+        content_length = len(comment.get("comment_content", ""))
 
         # Measure execution time
         start_time = time.time()
         result = evaluate_comment(comment, ollama_client, model=model)
         execution_time = time.time() - start_time
         performance_data.append([i + 1, content_length, execution_time, result])
+
+        if result == "NOT_SPAM":
+            log_non_spam_comments(comment)
 
     # Create the dataframe from raw performance data
     # Never grow a dataframe, it's more efficient to create simple lists of
@@ -175,6 +183,11 @@ def main(db_config, record_limit, ollama_client, model):
     print("\n=== Detailed Results ===")
     print(results_df)
 
+
+def log_non_spam_comments(comment):
+    with open("non_spam_comments.txt", "a", encoding="utf-8") as handle:
+        comment_json = json.dumps(comment)
+        handle.write(comment_json + "\n")
 
 if __name__ == "__main__":
     # Database connection parameters
